@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: sgs_mongodb_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data_dev:/data/db
+
+  mongo-express:
+    image: mongo-express
+    container_name: sgs_mongo_express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      - mongodb
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: sgs_backend_dev
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongodb:27017/sgs_golf_club
+      JWT_SECRET: dev-secret-replace-in-prod
+      JWT_EXPIRES_IN: 8h
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      - mongodb
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: sgs_frontend_dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NEXT_PUBLIC_GRAPHQL_URL: http://localhost:4000/graphql
+    depends_on:
+      - backend
+    command: npm run dev
+
+volumes:
+  mongo_data_dev:
