@@ -6,7 +6,7 @@ Cypress.Commands.add("loginAsAdmin", () => {
     url: "http://localhost:4000/graphql",
     body: {
       query: `mutation {
-        login(input: { email: "admin@safarigolfseattle.org", password: "Admin123!" }) {
+        login(input: { email: "admin@sgs.golf", password: "Admin123!" }) {
           token
           user { email role }
         }

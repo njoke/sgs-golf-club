@@ -5,7 +5,7 @@ Feature: Auth — Login
     * header Content-Type = 'application/json'
 
   Scenario: Admin login returns JWT
-    * def query = 'mutation { login(input: { email: "admin@safarigolfseattle.org", password: "Admin123!" }) { token user { email role } } }'
+    * def query = 'mutation { login(input: { email: "admin@sgs.golf", password: "Admin123!" }) { token user { email role } } }'
     Given request { query: '#(query)' }
     When method post
     Then status 200

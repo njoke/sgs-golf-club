@@ -42,7 +42,7 @@ docker-compose -f docker-compose.dev.yml down -v
 
 | Role | Email | Password |
 |---|---|---|
-| Club Admin | admin@safarigolfseattle.org | Admin123! |
+| Club Admin | admin@sgs.golf | Admin123! |
 
 ## Project Structure
 
