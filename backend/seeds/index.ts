@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 import { env } from "../src/config/env";
+import { seedClub } from "./clubs.seed";
+import { seedUsers } from "./users.seed";
+import { seedGolfers, findJaredGolfer } from "./golfers.seed";
+import { User } from "../src/models/user.model";
 
 const RESET = process.argv.includes("--reset");
 
@@ -15,9 +19,20 @@ async function run() {
     console.log("Database reset complete");
   }
 
-  // Seed modules imported and run here as feature specs are implemented
-  // e.g., await seedUsers();
-  // e.g., await seedClubs();
+  // Order: clubs → users → golfers → link member user → courses → scores
+  const club = await seedClub();
+  await seedUsers(club._id);
+  const golfers = await seedGolfers(club._id);
+
+  // Link jared@sgs.golf user to Jared Abwawo's golfer record
+  const jaredGolfer = findJaredGolfer(golfers);
+  if (jaredGolfer) {
+    await User.updateOne(
+      { email: "jared@sgs.golf" },
+      { golferId: jaredGolfer._id }
+    );
+    console.log(`✓ Linked jared@sgs.golf → golfer ${jaredGolfer._id}`);
+  }
 
   console.log("Seed complete");
   await mongoose.disconnect();

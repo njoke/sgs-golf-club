@@ -33,7 +33,7 @@ services:
     environment:
       NODE_ENV: development
       MONGODB_URI: mongodb://mongodb:27017/sgs_golf_club
-      JWT_SECRET: dev-secret-replace-in-prod
+      JWT_SECRET: dev-secret-replace-in-prod-change-me
       JWT_EXPIRES_IN: 8h
       CORS_ORIGIN: http://localhost:3000
     depends_on:

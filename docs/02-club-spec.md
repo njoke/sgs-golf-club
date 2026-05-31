@@ -427,8 +427,8 @@ export async function seedClub(): Promise<IClub> {
 ## 9. Verification Commands
 
 ```bash
-TOKEN="<your-jwt>"
-CLUB_ID="<club-id-from-seed>"
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTExNDFhMWMyZjg4MDNhYTNhMWVkYjgiLCJlbWFpbCI6Im1nb0BnbWFpbC5jb20iLCJyb2xlIjoiQ0xVQ19BRE1JTiIsImNsdWJJZHMiOlsiNmExY2E0NzNjM2FjM2UzMDA4ZWQxNDk2Il0sImdyb3VwcyI6W119.wKkF-b2m-V_wzQ110_p5b6c1w41Y3X0p41Y3X0p41Y3X"
+CLUB_ID="6a1ca473c3ac3e3008ed1496"
 
 # 1. Load my clubs
 curl -s -X POST http://localhost:4000/graphql \

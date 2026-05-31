@@ -1,5 +1,15 @@
-// Resolvers merged here as each feature module is implemented
+import { authResolvers } from "./auth.resolver";
+import { clubResolvers } from "./club.resolver";
+import { golferResolvers } from "./golfer.resolver";
+
 export const resolvers = {
-  Query: {},
-  Mutation: {},
+  Query: {
+    ...clubResolvers.Query,
+    ...golferResolvers.Query,
+  },
+  Mutation: {
+    ...authResolvers.Mutation,
+    ...clubResolvers.Mutation,
+    ...golferResolvers.Mutation,
+  },
 };

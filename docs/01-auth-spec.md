@@ -485,7 +485,7 @@ File: `seeds/users.seed.ts`
 import { hashPassword } from '../src/auth/password';
 
 export const adminUserSeed = {
-  email: 'admin@safarigolfseattle.org',
+  email: 'admin@sgs.golf',
   password: 'Admin123!',     // Only used for seeding; hashed before save
   firstName: 'Ken',
   lastName: 'Njonge',
@@ -503,14 +503,14 @@ export async function seedUsers(clubId: string) {
     clubIds: [clubId],
   });
 
-  console.log('✓ Admin user seeded: admin@safarigolfseattle.org / Admin123!');
+  console.log('✓ Admin user seeded: admin@sgs.golf / Admin123!');
 }
 ```
 
 > **Note:** Also seed a member user linked to Jared Abwawo's golfer record for member portal testing.
 >
 > ```
-> Member email: jared@safarigolfseattle.org
+> Member email: jared@sgs.golf
 > Member password: Member123!
 > Role: MEMBER
 > ```
@@ -524,21 +524,21 @@ export async function seedUsers(clubId: string) {
 curl -s -X POST http://localhost:4000/graphql \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "mutation { login(input: { email: \"admin@safarigolfseattle.org\", password: \"Admin123!\" }) { token user { email role clubIds } } }"
+    "query": "mutation { login(input: { email: \"admin@sgs.golf\", password: \"Admin123!\" }) { token user { email role clubIds } } }"
   }' | jq
 
 # 2. Login as member — expect token + MEMBER role
 curl -s -X POST http://localhost:4000/graphql \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "mutation { login(input: { email: \"jared@safarigolfseattle.org\", password: \"Member123!\" }) { token user { email role golferId } } }"
+    "query": "mutation { login(input: { email: \"jared@sgs.golf\", password: \"Member123!\" }) { token user { email role golferId } } }"
   }' | jq
 
 # 3. Invalid credentials — expect UNAUTHENTICATED error
 curl -s -X POST http://localhost:4000/graphql \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "mutation { login(input: { email: \"admin@safarigolfseattle.org\", password: \"wrong\" }) { token } }"
+    "query": "mutation { login(input: { email: \"admin@sgs.golf\", password: \"wrong\" }) { token } }"
   }' | jq
 
 # 4. Protected query without token — expect UNAUTHENTICATED
@@ -551,8 +551,8 @@ curl -s -X POST http://localhost:4000/graphql \
 
 ## 14. Acceptance Criteria
 
-- [ ] Admin can log in with `admin@safarigolfseattle.org` / `Admin123!`
-- [ ] Member can log in with `jared@safarigolfseattle.org` / `Member123!`
+- [ ] Admin can log in with `admin@sgs.golf` / `Admin123!`
+- [ ] Member can log in with `jared@sgs.golf` / `Member123!`
 - [ ] Wrong password returns `"Invalid email or password."` — does not reveal which field failed
 - [ ] Inactive user returns `"Account is inactive or locked."`
 - [ ] JWT contains `userId`, `email`, `role`, `clubIds`
