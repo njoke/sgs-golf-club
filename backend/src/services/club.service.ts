@@ -4,6 +4,8 @@ import { AppError } from "../errors/AppError";
 import { ErrorCodes } from "../errors/errorCodes";
 import { requireAuth, requireRole, requireClubAccess } from "../auth/permissions";
 import type { GraphQLContext } from "../graphql/context";
+import { auditService } from "./audit.service";
+import { buildAuditActorContext, diffAuditFields } from "./audit.utils";
 
 export interface UpdateClubInput {
   name?: string;
@@ -60,8 +62,50 @@ export const clubService = {
       throw new AppError("Club not found.", ErrorCodes.NOT_FOUND, 404);
     }
 
-    // TODO: wire audit log when spec 08 is implemented
-    // await auditService.log({ ... })
+    const auditKeys = [
+      "name",
+      "shortName",
+      "phone",
+      "email",
+      "website",
+      "hubspotCompanyId",
+      "handicapChairperson",
+      "contactsUpdated",
+    ];
+    const { before: auditBefore, after: auditAfter } = diffAuditFields(
+      {
+        name: before.name,
+        shortName: before.shortName,
+        phone: before.phone,
+        email: before.email,
+        website: before.website,
+        hubspotCompanyId: before.hubspotCompanyId,
+        handicapChairperson: before.handicapChairperson,
+        contactsUpdated: input.contacts ? false : undefined,
+      },
+      {
+        name: updated.name,
+        shortName: updated.shortName,
+        phone: updated.phone,
+        email: updated.email,
+        website: updated.website,
+        hubspotCompanyId: updated.hubspotCompanyId,
+        handicapChairperson: updated.handicapChairperson,
+        contactsUpdated: input.contacts ? true : undefined,
+      },
+      auditKeys
+    );
+    const auditActor = buildAuditActorContext(context, id);
+
+    await auditService.log({
+      ...auditActor,
+      entityType: "CLUB",
+      entityId: id,
+      action: "CLUB_UPDATED",
+      summary: `Club ${updated.name} was updated.`,
+      before: auditBefore,
+      after: auditAfter,
+    });
 
     return updated;
   },

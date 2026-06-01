@@ -8,14 +8,17 @@ export const options = {
 
 const GRAPHQL_URL = __ENV.GRAPHQL_URL || "http://localhost:4000/graphql";
 const TOKEN = __ENV.TOKEN || "";
+const CLUB_ID = __ENV.CLUB_ID || "CLUB_ID";
 
 export default function () {
   const payload = JSON.stringify({
-    query: `query {
-      golfers(clubId: "CLUB_ID") {
-        id firstName lastName handicapIndex
+    query: `query Roster($clubId: ID!) {
+      golfers(filter: { clubId: $clubId, pageSize: 25 }) {
+        nodes { id firstName lastName currentHandicapIndex }
+        pageInfo { totalCount }
       }
     }`,
+    variables: { clubId: CLUB_ID },
   });
 
   const params = {

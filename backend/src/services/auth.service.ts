@@ -4,6 +4,8 @@ import { comparePassword } from "../auth/password";
 import { signToken } from "../auth/jwt";
 import { AppError } from "../errors/AppError";
 import { ErrorCodes } from "../errors/errorCodes";
+import type { GraphQLContext } from "../graphql/context";
+import { auditService } from "./audit.service";
 
 export interface AuthPayload {
   token: string;
@@ -11,7 +13,11 @@ export interface AuthPayload {
 }
 
 export class AuthService {
-  async login(email: string, password: string): Promise<AuthPayload> {
+  async login(
+    email: string,
+    password: string,
+    context?: GraphQLContext
+  ): Promise<AuthPayload> {
     const user = await UserRepository.findByEmail(email.toLowerCase());
     if (!user) {
       throw new AppError("Invalid email or password.", ErrorCodes.INVALID_CREDENTIALS, 401);
@@ -36,7 +42,43 @@ export class AuthService {
       golferId: user.golferId?.toString(),
     });
 
+    await auditService.log({
+      clubId: user.clubIds[0]?.toString(),
+      actorUserId: user._id.toString(),
+      actorEmail: user.email,
+      actorRole: user.role,
+      entityType: "USER",
+      entityId: user._id.toString(),
+      action: "USER_LOGIN",
+      summary: `User ${user.email} logged in.`,
+      before: null,
+      after: { lastLoginAt: new Date().toISOString() },
+      ipAddress: context?.requestInfo?.ipAddress,
+      userAgent: context?.requestInfo?.userAgent,
+    });
+
     return { token, user };
+  }
+
+  async logout(context: GraphQLContext): Promise<{ success: boolean; message: string }> {
+    if (context.user) {
+      await auditService.log({
+        clubId: context.user.clubIds[0],
+        actorUserId: context.user.userId,
+        actorEmail: context.user.email,
+        actorRole: context.user.role,
+        entityType: "USER",
+        entityId: context.user.userId,
+        action: "USER_LOGOUT",
+        summary: `User ${context.user.email} logged out.`,
+        before: null,
+        after: null,
+        ipAddress: context.requestInfo?.ipAddress,
+        userAgent: context.requestInfo?.userAgent,
+      });
+    }
+
+    return { success: true, message: "Logged out successfully." };
   }
 }
 

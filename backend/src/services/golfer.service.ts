@@ -1,11 +1,13 @@
-import { FilterQuery } from "mongoose";
-import { IGolfer } from "../models/golfer.model";
+import { FilterQuery, Types } from "mongoose";
+import { Gender, IGolfer } from "../models/golfer.model";
 import { Golfer } from "../models/golfer.model";
 import { GolferRepository, GolferRosterFilter } from "../repositories/golfer.repository";
 import { AppError } from "../errors/AppError";
 import { ErrorCodes } from "../errors/errorCodes";
 import { requireAuth, requireRole, requireClubAccess } from "../auth/permissions";
 import type { GraphQLContext } from "../graphql/context";
+import { auditService } from "./audit.service";
+import { buildAuditActorContext, diffAuditFields, sanitizeAuditRecord } from "./audit.utils";
 
 export interface AddNewGolferInput {
   clubId: string;
@@ -15,7 +17,7 @@ export interface AddNewGolferInput {
   middleName?: string;
   lastName: string;
   suffix?: string;
-  gender: string;
+  gender: Gender;
   dateOfBirth?: Date;
   email: string;
   phone?: string;
@@ -42,7 +44,7 @@ export interface UpdateGolferInput {
   middleName?: string;
   lastName?: string;
   suffix?: string;
-  gender?: string;
+  gender?: Gender;
   dateOfBirth?: Date;
   email?: string;
   phone?: string;
@@ -75,6 +77,29 @@ export interface GolferSearchResult {
   state?: string;
   currentClubName: string | null;
   canAddToClub: boolean;
+}
+
+function getGolferAuditSnapshot(golfer: Pick<
+  IGolfer,
+  | "firstName"
+  | "lastName"
+  | "email"
+  | "membershipCode"
+  | "ghinNumber"
+  | "gender"
+  | "membershipStatus"
+  | "currentHandicapIndex"
+>) {
+  return {
+    firstName: golfer.firstName,
+    lastName: golfer.lastName,
+    email: golfer.email,
+    membershipCode: golfer.membershipCode,
+    ghinNumber: golfer.ghinNumber,
+    gender: golfer.gender,
+    membershipStatus: golfer.membershipStatus,
+    currentHandicapIndex: golfer.currentHandicapIndex,
+  };
 }
 
 export const golferService = {
@@ -161,13 +186,23 @@ export const golferService = {
 
     const golfer = await GolferRepository.create({
       ...input,
+      clubId: new Types.ObjectId(input.clubId),
       email: input.email.toLowerCase(),
       membershipStatus: "ACTIVE",
       statusDate: new Date(),
       digitalProfileStatus: "NONE",
-    } as Partial<IGolfer>);
+    });
 
-    // TODO: wire audit log (spec 08)
+    const auditActor = buildAuditActorContext(context, input.clubId);
+    await auditService.log({
+      ...auditActor,
+      entityType: "GOLFER",
+      entityId: golfer._id.toString(),
+      action: "GOLFER_CREATED",
+      summary: `Golfer ${golfer.firstName} ${golfer.lastName} was added to the club.`,
+      before: null,
+      after: sanitizeAuditRecord(getGolferAuditSnapshot(golfer)),
+    });
 
     return golfer;
   },
@@ -206,12 +241,30 @@ export const golferService = {
         membershipCode: input.membershipCode,
         localNumber: input.localNumber,
       });
+      const auditActor = buildAuditActorContext(context, input.clubId);
+      await auditService.log({
+        ...auditActor,
+        entityType: "GOLFER",
+        entityId: existing._id.toString(),
+        action: "GOLFER_ACTIVATED",
+        summary: `Golfer ${existing.firstName} ${existing.lastName} was reactivated in the club.`,
+        before: sanitizeAuditRecord({
+          membershipStatus: existing.membershipStatus,
+          membershipCode: existing.membershipCode,
+          localNumber: existing.localNumber,
+        }),
+        after: sanitizeAuditRecord({
+          membershipStatus: updated?.membershipStatus,
+          membershipCode: updated?.membershipCode,
+          localNumber: updated?.localNumber,
+        }),
+      });
       return updated!;
     }
 
     // New record in this club
     const golfer = await GolferRepository.create({
-      clubId: input.clubId as unknown as IGolfer["clubId"],
+      clubId: new Types.ObjectId(input.clubId),
       ghinNumber: source.ghinNumber,
       localNumber: input.localNumber,
       firstName: source.firstName,
@@ -229,7 +282,16 @@ export const golferService = {
       digitalProfileStatus: "NONE",
     });
 
-    // TODO: wire audit log (spec 08)
+    const auditActor = buildAuditActorContext(context, input.clubId);
+    await auditService.log({
+      ...auditActor,
+      entityType: "GOLFER",
+      entityId: golfer._id.toString(),
+      action: "GOLFER_CREATED",
+      summary: `Existing golfer ${golfer.firstName} ${golfer.lastName} was added to the club.`,
+      before: null,
+      after: sanitizeAuditRecord(getGolferAuditSnapshot(golfer)),
+    });
 
     return golfer;
   },
@@ -248,8 +310,62 @@ export const golferService = {
     requireRole(context, ["SUPER_ADMIN", "CLUB_ADMIN", "HANDICAP_CHAIR"]);
 
     const updated = await GolferRepository.update(id, input as Partial<IGolfer>);
+    const auditActor = buildAuditActorContext(context, golfer.clubId.toString());
+    const requestedAddressFields = input.address
+      ? {
+          addressCity: golfer.address?.city,
+          addressState: golfer.address?.state,
+          addressCountry: golfer.address?.country,
+        }
+      : {};
+    const updatedAddressFields = input.address
+      ? {
+          addressCity: updated?.address?.city,
+          addressState: updated?.address?.state,
+          addressCountry: updated?.address?.country,
+        }
+      : {};
+    const { before: auditBefore, after: auditAfter } = diffAuditFields(
+      {
+        ...getGolferAuditSnapshot(golfer),
+        localNumber: golfer.localNumber,
+        phone: golfer.phone,
+        dateOfBirth: golfer.dateOfBirth?.toISOString(),
+        ...requestedAddressFields,
+      },
+      {
+        ...getGolferAuditSnapshot(updated!),
+        localNumber: updated?.localNumber,
+        phone: updated?.phone,
+        dateOfBirth: updated?.dateOfBirth?.toISOString(),
+        ...updatedAddressFields,
+      },
+      [
+        "firstName",
+        "lastName",
+        "email",
+        "membershipCode",
+        "ghinNumber",
+        "gender",
+        "currentHandicapIndex",
+        "localNumber",
+        "phone",
+        "dateOfBirth",
+        "addressCity",
+        "addressState",
+        "addressCountry",
+      ]
+    );
 
-    // TODO: wire audit log (spec 08)
+    await auditService.log({
+      ...auditActor,
+      entityType: "GOLFER",
+      entityId: id,
+      action: "GOLFER_UPDATED",
+      summary: `Golfer ${updated!.firstName} ${updated!.lastName} profile was updated.`,
+      before: auditBefore,
+      after: auditAfter,
+    });
 
     return updated!;
   },
@@ -270,7 +386,16 @@ export const golferService = {
       statusDate: new Date(),
     });
 
-    // TODO: wire audit log (spec 08)
+    const auditActor = buildAuditActorContext(context, golfer.clubId.toString());
+    await auditService.log({
+      ...auditActor,
+      entityType: "GOLFER",
+      entityId: id,
+      action: "GOLFER_ACTIVATED",
+      summary: `Golfer ${golfer.firstName} ${golfer.lastName} was activated.`,
+      before: sanitizeAuditRecord({ membershipStatus: golfer.membershipStatus }),
+      after: sanitizeAuditRecord({ membershipStatus: updated?.membershipStatus }),
+    });
 
     return updated!;
   },
@@ -295,7 +420,16 @@ export const golferService = {
       statusDate: new Date(),
     });
 
-    // TODO: wire audit log (spec 08) — include reason
+    const auditActor = buildAuditActorContext(context, golfer.clubId.toString());
+    await auditService.log({
+      ...auditActor,
+      entityType: "GOLFER",
+      entityId: id,
+      action: "GOLFER_DEACTIVATED",
+      summary: reason ?? `Golfer ${golfer.firstName} ${golfer.lastName} was deactivated.`,
+      before: sanitizeAuditRecord({ membershipStatus: golfer.membershipStatus }),
+      after: sanitizeAuditRecord({ membershipStatus: updated?.membershipStatus }),
+    });
 
     return updated!;
   },

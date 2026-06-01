@@ -1,11 +1,13 @@
 import { clubService, UpdateClubInput } from "../../services/club.service";
 import type { GraphQLContext } from "../context";
 import type { IClub } from "../../models/club.model";
+import { toPlainObject } from "./toPlainObject";
 
 function mapClub(club: IClub) {
+  const plainClub = toPlainObject(club);
   return {
-    ...club,
-    id: club._id.toString(),
+    ...plainClub,
+    id: plainClub._id.toString(),
   };
 }
 

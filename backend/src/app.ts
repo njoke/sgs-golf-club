@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Express } from "express";
 import cors from "cors";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
@@ -9,7 +9,7 @@ import { buildContext } from "./graphql/context";
 import { formatGraphQLError } from "./errors/formatGraphQLError";
 import { env } from "./config/env";
 
-export async function createApp() {
+export async function createApp(): Promise<Express> {
   const app = express();
 
   const server = new ApolloServer({

@@ -1,15 +1,19 @@
 import { authService } from "../../services/auth.service";
 import type { GraphQLContext } from "../context";
 
-interface LoginInput {
+export interface LoginInput {
   email: string;
   password: string;
 }
 
 export const authResolvers = {
   Mutation: {
-    login: async (_: unknown, { input }: { input: LoginInput }) => {
-      const { token, user } = await authService.login(input.email, input.password);
+    login: async (
+      _: unknown,
+      { input }: { input: LoginInput },
+      ctx: GraphQLContext
+    ) => {
+      const { token, user } = await authService.login(input.email, input.password, ctx);
       return {
         token,
         user: {
@@ -25,8 +29,8 @@ export const authResolvers = {
       };
     },
 
-    logout: async (_: unknown, __: unknown, _context: GraphQLContext) => {
-      return { success: true, message: "Logged out successfully." };
+    logout: async (_: unknown, __: unknown, context: GraphQLContext) => {
+      return authService.logout(context);
     },
   },
 };

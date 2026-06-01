@@ -5,12 +5,14 @@ import { ErrorCodes } from "../../errors/errorCodes";
 import type { GraphQLContext } from "../context";
 import type { GolferRosterFilter } from "../../repositories/golfer.repository";
 import type { IGolfer } from "../../models/golfer.model";
+import { toPlainObject } from "./toPlainObject";
 
 function mapGolfer(g: IGolfer) {
+  const plainGolfer = toPlainObject(g);
   return {
-    ...g,
-    id: g._id.toString(),
-    clubId: g.clubId.toString(),
+    ...plainGolfer,
+    id: plainGolfer._id.toString(),
+    clubId: plainGolfer.clubId.toString(),
   };
 }
 
