@@ -2,254 +2,362 @@
 
 **Date:** 2026-06-01  
 **Project:** Safari Golf Seattle — Club Management Portal  
-**Stack:** Node.js 20 / TypeScript / Apollo Server 4 / MongoDB 7 / Next.js 14 App Router  
-**Dev environment:** Docker Compose  
+**Stack:** Node.js 20 / TypeScript / Apollo Server 4 / MongoDB 7 / Next.js 14 App Router / Tailwind / Apollo Client  
+**Dev environment:** Docker Compose
+
+---
+
+## Current Snapshot
+
+Repo no longer at skeleton stage.
+
+- Backend core for specs 01–08 is implemented.
+- Frontend has real auth, admin, and member routes for main MVP flows.
+- Docker dev stack boots cleanly for backend/frontend/Mongo.
+- Unit tests and containerized frontend compile/build checks have passed.
+
+Main remaining work is feature depth, authenticated browser smoke, and finishing a few admin CRUD lanes.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Start all services
-docker-compose -f docker-compose.dev.yml up --build
+# Start dev stack
+docker compose -f docker-compose.dev.yml up --build
 
-# Seed database (run after containers are up)
+# Seed/reset database after containers are up
 docker exec sgs_backend_dev npm run seed -- --reset
 
-# Restart backend after code changes
-docker-compose -f docker-compose.dev.yml restart backend
+# Restart services after code changes
+docker compose -f docker-compose.dev.yml restart backend
+docker compose -f docker-compose.dev.yml restart frontend
 ```
 
-| Service        | URL                           |
-|----------------|-------------------------------|
-| GraphQL API    | http://localhost:4000/graphql |
-| Frontend       | http://localhost:3000         |
-| Mongo Express  | http://localhost:8081         |
-
-**Test credentials:**
-
-| User               | Email              | Password    | Role        |
-|--------------------|--------------------|-------------|-------------|
-| Ken Njonge (admin) | admin@sgs.golf     | Admin123!   | CLUB_ADMIN  |
-| Jared Abwawo       | jared@sgs.golf     | Member123!  | MEMBER      |
+| Service | URL |
+|---|---|
+| GraphQL API | http://localhost:4000/graphql |
+| Frontend | http://localhost:3000 |
+| Health | http://localhost:4000/health |
+| Mongo Express | http://localhost:8081 |
 
 ---
 
-## What Is Built
+## Test Credentials
 
-### Spec 01 — Authentication ✅
-
-**Files:**
-- `backend/src/models/user.model.ts` — `IUser`, `UserRole`, `UserStatus`, Mongoose schema
-- `backend/src/auth/jwt.ts` — `signToken`, `verifyToken`, `extractTokenFromHeader`
-- `backend/src/auth/password.ts` — `hashPassword`, `comparePassword` (bcrypt)
-- `backend/src/auth/permissions.ts` — `requireAuth`, `requireRole`, `requireClubAccess`, `requireOwnGolferOrAdmin`
-- `backend/src/repositories/user.repository.ts` — `findByEmail`, `updateLastLogin`
-- `backend/src/services/auth.service.ts` — `AuthService.login()`
-- `backend/src/graphql/resolvers/auth.resolver.ts` — `login`, `logout` mutations
-
-**Key rules:**
-- JWT payload: `{ userId, email, role, clubIds[], golferId? }`; issuer `sgs-golf-club`; expiry `8h`
-- Login failure always returns `"Invalid email or password."` — never reveals which field failed
-- Permissions enforced at service layer, not resolver layer
-
-**GraphQL:**
-```graphql
-mutation { login(input: { email: "...", password: "..." }) { token user { id email role clubIds } } }
-mutation { logout { success message } }
-```
+| User | Email | Password | Role |
+|---|---|---|---|
+| Ken Njonge | `admin@sgs.golf` | `Admin123!` | `CLUB_ADMIN` |
+| Jared Abwawo | `jared@sgs.golf` | `Member123!` | `MEMBER` |
 
 ---
 
-### Spec 02 — Club Management ✅
+## Seed Baseline
 
-**Files:**
-- `backend/src/models/club.model.ts` — `IClub`, `IClubContact`, schema + 5 indexes
-- `backend/src/repositories/club.repository.ts` — `findById`, `findByIds`, `findAllActive`, `update`, `create`
-- `backend/src/services/club.service.ts` — `getMyClubs`, `getClubById`, `updateClub`
-- `backend/src/graphql/resolvers/club.resolver.ts` — `myClubs`, `club(id)`, `updateClub`
+Current seed flow includes:
 
-**Seed data:** Safari Golf Seattle — `clubNumber: 16645`, `ghpId: 20793`
+- Safari Golf Seattle club
+- admin + member users
+- 6 roster golfers
+- Cedar Irons Golf Club course with 8 tees
+- Jared score history
+- Spring Classic tournament
+- 5 seeded tournament registrations
 
-**Known stubs:** `updateClub` has a `// TODO: wire audit log (spec 08)` comment — no audit writes yet.
+Important note:
 
-**GraphQL:**
-```graphql
-query { myClubs { id name clubNumber status } }
-query { club(id: "...") { id name phone contacts { contactType name } } }
-mutation { updateClub(id: "...", input: { phone: "..." }) { id phone updatedAt } }
-```
+- Live smoke was run earlier and DB was reset back to seeded baseline afterward.
 
 ---
 
-### Spec 03 — Golfer & Roster Management ✅
+## Implemented By Spec
 
-**Files:**
-- `backend/src/models/golfer.model.ts` — `IGolfer`, `IAddress`, Gender/MembershipStatus/DigitalProfileStatus enums
-- `backend/src/repositories/golfer.repository.ts` — paginated roster filter, GHIN/email lookup, global search
-- `backend/src/services/golfer.service.ts` — full CRUD + activate/deactivate + search
-- `backend/src/graphql/resolvers/golfer.resolver.ts` — all queries and mutations
-
-**Seed data:** 6 golfers (Jared Abwawo, Sal Aguko, Rodney Bryan, Maurice Gichuru, Moses Kamau, Lucy Karanja). `jared@sgs.golf` user is linked to Jared Abwawo's golfer record via `golferId`.
-
-**Known stubs:** `addNewGolfer`, `updateGolfer`, `activateGolfer`, `deactivateGolfer` all have `// TODO: wire audit log (spec 08)` comments.
-
-**`addExistingGolferToClub` MVP behavior:**
-1. Search globally by GHIN number
-2. If found inactive in target club → reactivate
-3. If found in another club → clone record into target club
-4. If already active in target club → throw `ALREADY_EXISTS`
-
-**GraphQL:**
-```graphql
-query { golfers(filter: { clubId: "...", pageSize: 25 }) { nodes { id firstName lastName currentHandicapIndex } pageInfo { totalCount } } }
-query { golfer(id: "...") { id firstName lastName currentHandicapIndex lowHandicapIndex } }
-query { searchExistingGolfers(input: { clubId: "...", lastName: "Smith" }) { firstName lastName ghinNumber canAddToClub } }
-mutation { addNewGolfer(input: { clubId: "...", firstName: "...", lastName: "...", gender: M, email: "...", membershipCode: "R" }) { id } }
-mutation { activateGolfer(id: "...") { id membershipStatus } }
-mutation { deactivateGolfer(id: "...", reason: "...") { id membershipStatus } }
-```
+| Spec | Domain | Status | Notes |
+|---|---|---|---|
+| 01 | Authentication | ✅ | JWT auth, login/logout, role + club access permissions |
+| 02 | Club Management | ✅ | Queries + update mutation + audit writes |
+| 03 | Golfer / Roster | ✅ | Roster filters, add/reactivate/update/activate/deactivate |
+| 04 | Courses | ✅ | Course + tee models, repo, service, resolver, seed data |
+| 05 | Score Posting | ✅ | Post/update/withdraw/history, 9-hole pairing, member self-post only |
+| 06 | Handicap Engine | ✅ | Differential math, caps, ESR, 9-hole combine, recalculation service |
+| 07 | Tournaments | ✅ | Tournament CRUD, registration workflow, waitlist/approve/cancel |
+| 08 | Audit Logging | ✅ | Non-blocking audit writes across auth/club/golfer/course/score/tournament flows |
+| 09 | Admin Frontend | 🟡 | Major MVP routes built; golfer detail/add-course/add-golfer flows still incomplete |
+| 10 | Member Frontend | 🟡 | Main MVP routes built; needs authenticated browser smoke |
+| 11 | Testing | 🟡 | Strong unit coverage + build checks; Karate/Cypress mostly scaffolding |
 
 ---
 
-## What Is NOT Built (Specs 04–11)
+## Backend Status
 
-| Spec | Domain           | Status  | Notes                                                      |
-|------|------------------|---------|------------------------------------------------------------|
-| 04   | Courses          | ❌ TODO  | Course model, tee ratings, slope/rating per tee            |
-| 05   | Score Posting    | ❌ TODO  | Depends on Course (04)                                     |
-| 06   | Handicap Engine  | ❌ TODO  | WHS/GHIN math — suggested starting point (self-contained)  |
-| 07   | Tournaments      | ❌ TODO  | Depends on Golfer (03) and Score (05)                      |
-| 08   | Audit Logging    | ❌ TODO  | Stubs exist in club.service + golfer.service (3 TODOs)     |
-| 09   | Admin Frontend   | ❌ TODO  | Next.js App Router skeleton only                           |
-| 10   | Member Frontend  | ❌ TODO  | Skeleton only                                              |
-| 11   | Testing          | ❌ TODO  | Karate auth feature stub + Cypress login stub exist        |
+### Built
 
-> **Suggested start:** Spec 06 (handicap engine) — pure math module, no DB dependencies. Build + unit test before wiring score post.
+- Auth stack:
+  - `backend/src/auth/*`
+  - `backend/src/services/auth.service.ts`
+  - `backend/src/graphql/resolvers/auth.resolver.ts`
+- Clubs:
+  - `backend/src/models/club.model.ts`
+  - `backend/src/services/club.service.ts`
+  - `backend/src/graphql/resolvers/club.resolver.ts`
+- Golfers:
+  - `backend/src/models/golfer.model.ts`
+  - `backend/src/services/golfer.service.ts`
+  - `backend/src/graphql/resolvers/golfer.resolver.ts`
+- Courses:
+  - `backend/src/models/course.model.ts`
+  - `backend/src/services/course.service.ts`
+  - `backend/src/graphql/resolvers/course.resolver.ts`
+- Scores + handicap:
+  - `backend/src/models/score.model.ts`
+  - `backend/src/services/score.service.ts`
+  - `backend/src/services/handicap.service.ts`
+  - `backend/src/handicap/*`
+  - `backend/src/graphql/resolvers/score.resolver.ts`
+- Tournaments + registrations:
+  - `backend/src/models/tournament*.ts`
+  - `backend/src/services/tournament.service.ts`
+  - `backend/src/services/tournamentRegistration.service.ts`
+  - `backend/src/graphql/resolvers/tournament.resolver.ts`
+- Audit:
+  - `backend/src/models/auditLog.model.ts`
+  - `backend/src/services/audit.service.ts`
+  - `backend/src/graphql/resolvers/auditLog.resolver.ts`
 
----
+### Important backend rules
 
-## Architecture Patterns — Follow These
+- Permissions live in service layer.
+- `toPlainObject.ts` was added to avoid GraphQL returning raw Mongoose docs directly.
+- Members can only:
+  - post scores for themselves
+  - register themselves for tournaments
+  - view their own score history
+  - edit only safe profile fields
 
-### Layer order
+### Member profile edit policy
 
-```
-Resolver → Service → Repository → Model
-```
+`golferService.updateGolfer()` now allows member self-edit for only:
 
-- **Resolvers:** thin — call service, map `_id → id`, return. No business logic.
-- **Services:** auth checks + business rules. Call `requireAuth` / `requireRole` / `requireClubAccess` here.
-- **Repositories:** pure DB queries. No auth, no business logic.
-- **Permissions:** always call from service, never from resolver directly.
+- `firstName`
+- `middleName`
+- `lastName`
+- `phone`
+- `address`
 
-### Adding a new feature
+Restricted fields like `email`, `membershipCode`, `ghinNumber`, `gender`, etc. remain blocked for members.
 
-1. Read the relevant `docs/XX-spec.md` first — treat it as ground truth
-2. Create: `model` → `repository` → `service` → `resolver`
-3. Merge typeDefs into `src/graphql/schema.ts` (single schema file)
-4. Merge resolvers into `src/graphql/resolvers/index.ts`
-5. Add seed data to `seeds/XX.seed.ts`, call from `seeds/index.ts`
+### 9-hole score note
 
-### Error throwing
+Frontend now asks `Front 9` vs `Back 9`.
 
-```typescript
-// Always use AppError(message, ErrorCode, httpStatus)
-throw new AppError("Club not found.", ErrorCodes.NOT_FOUND, 404);
-```
+Reason:
 
-### Resolver ID mapping pattern
-
-```typescript
-function mapGolfer(g: IGolfer) {
-  return { ...g, id: g._id.toString(), clubId: g.clubId.toString() };
-}
-```
-
----
-
-## Project Structure
-
-```
-sgs-golf-club/
-├── backend/
-│   ├── src/
-│   │   ├── app.ts                   # Express + Apollo setup
-│   │   ├── server.ts                # Entry point
-│   │   ├── auth/
-│   │   │   ├── jwt.ts
-│   │   │   ├── password.ts
-│   │   │   └── permissions.ts
-│   │   ├── config/
-│   │   │   ├── database.ts
-│   │   │   └── env.ts               # Zod-validated env
-│   │   ├── errors/
-│   │   │   ├── AppError.ts
-│   │   │   ├── errorCodes.ts
-│   │   │   └── formatGraphQLError.ts
-│   │   ├── graphql/
-│   │   │   ├── context.ts           # JWT → user injection
-│   │   │   ├── schema.ts            # ALL typeDefs in one file
-│   │   │   └── resolvers/
-│   │   │       ├── index.ts         # Merge point for all resolvers
-│   │   │       ├── auth.resolver.ts
-│   │   │       ├── club.resolver.ts
-│   │   │       └── golfer.resolver.ts
-│   │   ├── models/
-│   │   │   ├── user.model.ts
-│   │   │   ├── club.model.ts
-│   │   │   └── golfer.model.ts
-│   │   ├── repositories/
-│   │   │   ├── user.repository.ts
-│   │   │   ├── club.repository.ts
-│   │   │   └── golfer.repository.ts
-│   │   └── services/
-│   │       ├── auth.service.ts
-│   │       ├── club.service.ts
-│   │       └── golfer.service.ts
-│   └── seeds/
-│       ├── index.ts                 # Seed runner (clubs → users → golfers)
-│       ├── clubs.seed.ts
-│       ├── users.seed.ts
-│       └── golfers.seed.ts
-├── frontend/
-│   └── src/
-│       ├── app/                     # Next.js App Router — route folders only, no UI built
-│       ├── lib/
-│       │   ├── apollo/              # Apollo Client + provider
-│       │   └── auth/                # AuthContext + useAuth hook
-│       └── utils/                   # formatHandicap, formatDate, formatScore
-├── tests/
-│   ├── karate/                      # GraphQL API tests (Karate 1.4) — auth login stub
-│   ├── cypress/                     # E2E tests (Cypress 13) — admin login stub
-│   └── k6/                          # Load tests — roster + post-score scripts
-└── docs/                            # Spec files — source of truth for all features
-```
+- backend differential math for 9-hole scores expects correct 9-hole rating/slope/par values
+- full 18-hole tee values would be wrong for 9-hole posting
 
 ---
 
-## Environment Variables
+## Frontend Status
 
-`docker-compose.dev.yml` injects these into `sgs_backend_dev`:
+### Core foundation built
 
-| Variable       | Value (dev)                                        | Notes                    |
-|----------------|----------------------------------------------------|--------------------------|
-| `MONGODB_URI`  | `mongodb://mongodb:27017/sgs_golf_club`            |                          |
-| `JWT_SECRET`   | `dev-secret-replace-in-prod-change-me`             | 42 chars, min 32 required |
-| `JWT_EXPIRES_IN` | `8h`                                             |                          |
-| `CORS_ORIGIN`  | `http://localhost:3000`                            |                          |
-| `BCRYPT_ROUNDS`| `12` (default)                                     | Use `10` in test env     |
+- cookie/localStorage auth session restore
+- Apollo auth header wiring
+- middleware route protection
+- landing page + shared login page
+- shared shells for admin/member
+- shared loading/status/metric components
+
+Key files:
+
+- `frontend/src/lib/auth/authContext.tsx`
+- `frontend/src/lib/auth/session.ts`
+- `frontend/src/lib/apollo/client.ts`
+- `frontend/src/middleware.ts`
+- `frontend/src/app/layout.tsx`
+
+### Admin routes built
+
+- `/login`
+- `/dashboard`
+- `/manage/[clubId]/roster`
+- `/manage/[clubId]/account`
+- `/manage/[clubId]/account/home-courses`
+- `/tournaments`
+- `/tournaments/create`
+- `/tournaments/[id]/registrations`
+
+Key admin files:
+
+- `frontend/src/app/(admin)/dashboard/page.tsx`
+- `frontend/src/app/(admin)/manage/[clubId]/roster/page.tsx`
+- `frontend/src/app/(admin)/manage/[clubId]/account/page.tsx`
+- `frontend/src/app/(admin)/manage/[clubId]/account/home-courses/page.tsx`
+- `frontend/src/app/(admin)/tournaments/page.tsx`
+- `frontend/src/app/(admin)/tournaments/create/page.tsx`
+- `frontend/src/app/(admin)/tournaments/[id]/registrations/page.tsx`
+
+### Member routes built
+
+- `/member/dashboard`
+- `/member/profile`
+- `/member/scores/post`
+- `/member/scores/history`
+- `/member/tournaments`
+- `/member/tournaments/[tournamentId]/register`
+
+Key member files:
+
+- `frontend/src/app/member/dashboard/page.tsx`
+- `frontend/src/app/member/profile/page.tsx`
+- `frontend/src/app/member/scores/post/page.tsx`
+- `frontend/src/app/member/scores/history/page.tsx`
+- `frontend/src/app/member/tournaments/page.tsx`
+- `frontend/src/app/member/tournaments/[tournamentId]/register/page.tsx`
+
+### Docker/frontend fixes already done
+
+- `frontend/next.config.ts` replaced with `frontend/next.config.mjs`
+- frontend dev binds `0.0.0.0`
+- root route exists and serves
+- middleware moved to `frontend/src/middleware.ts`
+- dev `node_modules` strategy uses baked Linux-native deps inside containers
 
 ---
 
-## Open TODOs
+## Verification Done
 
-| Location | TODO |
-|----------|------|
-| `club.service.ts:updateClub` | Wire audit log after spec 08 |
-| `golfer.service.ts:addNewGolfer` | Wire audit log after spec 08 |
-| `golfer.service.ts:updateGolfer` | Wire audit log after spec 08 |
-| `golfer.service.ts:activateGolfer` | Wire audit log after spec 08 |
-| `golfer.service.ts:deactivateGolfer` | Wire audit log after spec 08 |
-| `frontend/src/app/` | All route pages are empty stubs |
-| Karate `karate-config.js` | Login helper needs real endpoint wired |
-| Cypress `commands.ts` | `loginAsAdmin` helper stub needs real impl |
+### Backend
+
+Previously run:
+
+- full backend unit suite: `44` passed
+- targeted latest regression suite:
+  - `docker exec sgs_backend_dev npm test -- --runInBand tests/unit/golfer.service.test.ts tests/unit/score.service.test.ts`
+  - result: `8/8` tests passed
+
+Key backend unit files:
+
+- `backend/tests/unit/audit.service.test.ts`
+- `backend/tests/unit/course.service.test.ts`
+- `backend/tests/unit/golfer.service.test.ts`
+- `backend/tests/unit/handicap.engine.test.ts`
+- `backend/tests/unit/score.resolver.test.ts`
+- `backend/tests/unit/score.service.test.ts`
+- `backend/tests/unit/tournament.service.test.ts`
+- `backend/tests/unit/tournamentRegistration.service.test.ts`
+
+### Frontend
+
+Passed in container:
+
+- `docker exec sgs_frontend_dev ./node_modules/.bin/tsc --noEmit`
+- `docker exec sgs_frontend_dev npm run build`
+
+`next build` has completed successfully after latest admin/member route additions.
+
+### Route protection smoke
+
+Verified unauthenticated redirects:
+
+- `/dashboard` -> `307 /login`
+- `/member/dashboard` -> `307 /login`
+- `/member/profile` -> `307 /login`
+- `/member/tournaments` -> `307 /login`
+- `/member/tournaments/demo/register` -> `307 /login`
+- `/tournaments/create` -> `307 /login`
+- `/tournaments/demo/registrations` -> `307 /login`
+- `/manage/demo/account` -> `307 /login`
+- `/manage/demo/account/home-courses` -> `307 /login`
+
+### Earlier live API smoke that passed
+
+Earlier live GraphQL smoke hit:
+
+- admin/member login
+- `myClubs`
+- `clubCourses`
+- `golfers`
+- `postScore`
+- `registerForTournament`
+- `auditLogs`
+
+Then DB reset back to seed baseline.
+
+---
+
+## Known Gaps
+
+### Backend / API
+
+- No major backend TODO block known for MVP core.
+- More end-to-end/manual verification still helpful, especially around latest frontend flows.
+
+### Frontend
+
+Still incomplete or shallow:
+
+- admin add golfer modal/flow
+- admin golfer detail page with tabs
+- admin score-post flow for golfer detail lane
+- admin tournament edit flow
+- admin add/edit course form
+- account screen does not yet manage membership types
+- contact editing on club account is basic, not polished
+
+### Testing
+
+- Karate features exist but not actively run against live stack in this latest pass
+- Cypress smoke exists but does not cover new frontend flows
+- no authenticated browser walkthrough done for latest admin/member pages
+
+---
+
+## Recommended Next Steps
+
+Best next slice:
+
+1. Add authenticated browser/manual smoke for:
+   - admin login
+   - member login
+   - member post score
+   - member tournament register
+   - admin create tournament
+   - admin manage registrations
+   - admin update club/home-course defaults
+
+After that:
+
+2. Build admin golfer detail route with tabs:
+   - handicap management
+   - post score
+   - profile
+   - audit log
+
+3. Build admin add golfer flow:
+   - search existing
+   - add new
+
+4. Build add/edit home-course form
+
+5. Expand Cypress/Karate beyond smoke scaffolding
+
+---
+
+## Notes For Next Developer
+
+- Use `docs/*.md` specs as source of truth when behavior is ambiguous.
+- If testing score posting, remember 9-hole flow depends on front/back-nine selection.
+- If you run live mutations during smoke, reseed afterward if you want clean baseline:
+
+```bash
+docker exec sgs_backend_dev npm run seed -- --reset
+```
+
+- If frontend route protection seems broken, check `frontend/src/middleware.ts` first, not repo root.
+
+---
+
+## No Open Questions
+
+No blocker question for next developer right now. Main need is execution depth and authenticated end-to-end verification, not missing architecture decisions.

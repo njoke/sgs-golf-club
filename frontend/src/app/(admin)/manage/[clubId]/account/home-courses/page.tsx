@@ -4,6 +4,10 @@ import { gql, useMutation, useQuery } from "@apollo/client";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import {
+  CourseEditorPanel,
+  type CourseMutationInput,
+} from "@/components/admin/CourseEditorPanel";
 import { LoadingView } from "@/components/shared/LoadingView";
 import type { CourseRecord } from "@/types";
 
@@ -25,8 +29,38 @@ const GET_HOME_COURSES = gql`
         gender
         par
         courseRating
+        bogeyRating
         slopeRating
+        yardage
+        frontNine {
+          rating
+          slope
+          par
+        }
+        backNine {
+          rating
+          slope
+          par
+        }
       }
+    }
+  }
+`;
+
+const ADD_HOME_COURSE = gql`
+  mutation AddHomeCourse($input: AddCourseInput!) {
+    addHomeCourse(input: $input) {
+      id
+      courseName
+    }
+  }
+`;
+
+const UPDATE_HOME_COURSE = gql`
+  mutation UpdateHomeCourse($id: ID!, $input: AddCourseInput!) {
+    updateHomeCourse(id: $id, input: $input) {
+      id
+      courseName
     }
   }
 `;
@@ -59,9 +93,16 @@ const REMOVE_HOME_COURSE = gql`
   }
 `;
 
+type EditorState =
+  | { mode: "add" }
+  | { mode: "edit"; courseId: string }
+  | null;
+
 export default function HomeCoursesPage() {
   const params = useParams<{ clubId: string }>();
   const clubId = Array.isArray(params.clubId) ? params.clubId[0] : params.clubId;
+  const [editorState, setEditorState] = useState<EditorState>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data, loading, error, refetch } = useQuery(GET_HOME_COURSES, {
@@ -69,6 +110,8 @@ export default function HomeCoursesPage() {
     variables: { clubId },
   });
 
+  const [addHomeCourse, addState] = useMutation(ADD_HOME_COURSE);
+  const [updateHomeCourse, updateState] = useMutation(UPDATE_HOME_COURSE);
   const [setPrimaryFacility, setPrimaryState] = useMutation(SET_PRIMARY_FACILITY);
   const [setDefaultTees, setDefaultState] = useMutation(SET_DEFAULT_TEES);
   const [removeHomeCourse, removeState] = useMutation(REMOVE_HOME_COURSE);
@@ -91,10 +134,21 @@ export default function HomeCoursesPage() {
   }
 
   const courses = (data?.clubCourses ?? []) as CourseRecord[];
-  const isBusy = setPrimaryState.loading || setDefaultState.loading || removeState.loading;
+  const editorCourse =
+    editorState?.mode === "edit"
+      ? courses.find((course) => course.id === editorState.courseId) ?? null
+      : null;
+  const isMutating =
+    addState.loading ||
+    updateState.loading ||
+    setPrimaryState.loading ||
+    setDefaultState.loading ||
+    removeState.loading;
 
   async function runMutation(action: () => Promise<unknown>) {
+    setFeedback(null);
     setErrorMessage(null);
+
     try {
       await action();
       await refetch();
@@ -105,6 +159,47 @@ export default function HomeCoursesPage() {
     }
   }
 
+  function openAddEditor() {
+    setFeedback(null);
+    setErrorMessage(null);
+    setEditorState({ mode: "add" });
+  }
+
+  function openEditEditor(courseIdToEdit: string) {
+    setFeedback(null);
+    setErrorMessage(null);
+    setEditorState({ mode: "edit", courseId: courseIdToEdit });
+  }
+
+  async function handleCourseSave(input: CourseMutationInput) {
+    setFeedback(null);
+    setErrorMessage(null);
+
+    if (editorState?.mode === "edit") {
+      if (!editorCourse) {
+        throw new Error("Course record no longer available.");
+      }
+
+      await updateHomeCourse({
+        variables: {
+          id: editorCourse.id,
+          input,
+        },
+      });
+      setFeedback(`${input.courseName} updated.`);
+    } else {
+      await addHomeCourse({
+        variables: {
+          input,
+        },
+      });
+      setFeedback(`${input.courseName} added.`);
+    }
+
+    await refetch();
+    setEditorState(null);
+  }
+
   return (
     <div className="space-y-6">
       <section className="rounded-panel border bg-ui-card/90 p-8 shadow-panel">
@@ -113,7 +208,7 @@ export default function HomeCoursesPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-brand-clay">Home courses</p>
             <h2 className="mt-3 text-3xl font-semibold text-ui-ink">Facility and tee defaults</h2>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-ui-muted">
-              Manage which facility is primary and which tees are defaults for male and female members.
+              Manage primary facility, default tees, and full course setup from one admin lane.
             </p>
           </div>
 
@@ -126,19 +221,36 @@ export default function HomeCoursesPage() {
             </Link>
             <button
               type="button"
-              disabled
-              className="rounded-full border border-ui-line bg-white px-5 py-3 text-sm font-semibold text-ui-muted"
+              onClick={openAddEditor}
+              className="rounded-full bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:bg-brand-green-light"
             >
-              Add course next
+              Add course
             </button>
           </div>
         </div>
       </section>
 
+      {feedback ? (
+        <p className="rounded-3xl border border-status-active/20 bg-status-active/8 px-5 py-4 text-sm text-status-active">
+          {feedback}
+        </p>
+      ) : null}
+
       {errorMessage ? (
         <p className="rounded-3xl border border-status-withdrawn/20 bg-status-withdrawn/8 px-5 py-4 text-sm text-status-withdrawn">
           {errorMessage}
         </p>
+      ) : null}
+
+      {editorState ? (
+        <CourseEditorPanel
+          clubId={clubId}
+          mode={editorState.mode}
+          course={editorCourse}
+          isSaving={addState.loading || updateState.loading}
+          onCancel={() => setEditorState(null)}
+          onSave={handleCourseSave}
+        />
       ) : null}
 
       <section className="space-y-5">
@@ -164,10 +276,19 @@ export default function HomeCoursesPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={isMutating}
+                      onClick={() => openEditEditor(course.id)}
+                      className="rounded-full border border-ui-line bg-white px-4 py-2 text-xs font-semibold text-ui-ink hover:border-brand-gold disabled:opacity-40"
+                    >
+                      Edit
+                    </button>
+
                     {!course.isPrimaryFacility ? (
                       <button
                         type="button"
-                        disabled={isBusy}
+                        disabled={isMutating}
                         onClick={() =>
                           void runMutation(() =>
                             setPrimaryFacility({ variables: { courseId: course.id } })
@@ -181,11 +302,9 @@ export default function HomeCoursesPage() {
 
                     <button
                       type="button"
-                      disabled={isBusy}
+                      disabled={isMutating}
                       onClick={() => {
-                        const confirmed = window.confirm(
-                          `Remove ${course.courseName}?`
-                        );
+                        const confirmed = window.confirm(`Remove ${course.courseName}?`);
                         if (!confirmed) {
                           return;
                         }
@@ -200,11 +319,11 @@ export default function HomeCoursesPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_18rem]">
                   <label className="block">
                     <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-ui-muted">Default male tee</span>
                     <select
-                      defaultValue={course.defaultMaleTeeId ?? ""}
+                      value={course.defaultMaleTeeId ?? ""}
                       onChange={(event) =>
                         void runMutation(() =>
                           setDefaultTees({
@@ -230,7 +349,7 @@ export default function HomeCoursesPage() {
                   <label className="block">
                     <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-ui-muted">Default female tee</span>
                     <select
-                      defaultValue={course.defaultFemaleTeeId ?? ""}
+                      value={course.defaultFemaleTeeId ?? ""}
                       onChange={(event) =>
                         void runMutation(() =>
                           setDefaultTees({
@@ -252,13 +371,21 @@ export default function HomeCoursesPage() {
                       ))}
                     </select>
                   </label>
+
+                  <div className="rounded-3xl border bg-brand-sand/35 p-4 text-sm text-ui-muted">
+                    <p className="text-xs uppercase tracking-[0.18em] text-brand-clay">9-hole note</p>
+                    <p className="mt-2 leading-6">
+                      New course forms can store front/back 9 values so score posting keeps accurate
+                      9-hole differentials.
+                    </p>
+                  </div>
                 </div>
               </article>
             );
           })
         ) : (
           <p className="rounded-panel border bg-ui-card/90 p-8 text-sm text-ui-muted shadow-panel">
-            No home courses configured yet.
+            No home courses configured yet. Use add course to create first facility and tee setup.
           </p>
         )}
       </section>
