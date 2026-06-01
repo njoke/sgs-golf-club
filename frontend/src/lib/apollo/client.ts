@@ -1,12 +1,14 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
+import { AUTH_COOKIE_NAME, getClientCookie } from "@/lib/auth/session";
 
 const httpLink = createHttpLink({
   uri: process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql",
+  credentials: "include",
 });
 
 const authLink = setContext((_, { headers }) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = getClientCookie(AUTH_COOKIE_NAME);
   return {
     headers: {
       ...headers,
@@ -17,5 +19,18 @@ const authLink = setContext((_, { headers }) => {
 
 export const apolloClient = new ApolloClient({
   link: from([authLink, httpLink]),
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({
+    typePolicies: {
+      Query: {
+        fields: {
+          golfers: { keyArgs: ["filter", ["clubId"]] },
+          golferScores: { keyArgs: ["filter", ["golferId"]] },
+        },
+      },
+    },
+  }),
+  defaultOptions: {
+    watchQuery: { fetchPolicy: "cache-and-network" },
+    query: { fetchPolicy: "network-only" },
+  },
 });

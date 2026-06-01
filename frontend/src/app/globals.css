@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    @apply bg-ui-canvas text-ui-ink;
+  }
+
+  body {
+    @apply min-h-screen bg-ui-canvas text-ui-ink antialiased;
+    background-image:
+      radial-gradient(circle at top, rgba(208, 170, 91, 0.16), transparent 30%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(245, 241, 232, 0.92));
+  }
+
+  * {
+    @apply border-ui-line;
+  }
+
+  a {
+    @apply transition-colors;
+  }
+
+  ::selection {
+    background: rgba(208, 170, 91, 0.28);
+  }
+}

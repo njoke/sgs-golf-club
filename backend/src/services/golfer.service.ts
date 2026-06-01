@@ -4,7 +4,12 @@ import { Golfer } from "../models/golfer.model";
 import { GolferRepository, GolferRosterFilter } from "../repositories/golfer.repository";
 import { AppError } from "../errors/AppError";
 import { ErrorCodes } from "../errors/errorCodes";
-import { requireAuth, requireRole, requireClubAccess } from "../auth/permissions";
+import {
+  requireAuth,
+  requireRole,
+  requireClubAccess,
+  requireOwnGolferOrAdmin,
+} from "../auth/permissions";
 import type { GraphQLContext } from "../graphql/context";
 import { auditService } from "./audit.service";
 import { buildAuditActorContext, diffAuditFields, sanitizeAuditRecord } from "./audit.utils";
@@ -58,6 +63,29 @@ export interface UpdateGolferInput {
     postalCode?: string;
     country?: string;
   };
+}
+
+function ensureMemberSafeUpdate(input: UpdateGolferInput): void {
+  const editableKeys: Array<keyof UpdateGolferInput> = [
+    "firstName",
+    "middleName",
+    "lastName",
+    "phone",
+    "address",
+  ];
+
+  const requestedKeys = Object.entries(input)
+    .filter(([, value]) => value !== undefined)
+    .map(([key]) => key as keyof UpdateGolferInput);
+
+  const blockedKeys = requestedKeys.filter((key) => !editableKeys.includes(key));
+  if (blockedKeys.length) {
+    throw new AppError(
+      `Members cannot update: ${blockedKeys.join(", ")}.`,
+      ErrorCodes.UNAUTHORIZED,
+      403
+    );
+  }
 }
 
 export interface ExistingGolferSearchInput {
@@ -307,7 +335,11 @@ export const golferService = {
     if (!golfer) throw new AppError("Golfer not found.", ErrorCodes.NOT_FOUND, 404);
 
     requireClubAccess(context, golfer.clubId.toString());
-    requireRole(context, ["SUPER_ADMIN", "CLUB_ADMIN", "HANDICAP_CHAIR"]);
+    requireOwnGolferOrAdmin(context, id);
+
+    if (context.user.role === "MEMBER") {
+      ensureMemberSafeUpdate(input);
+    }
 
     const updated = await GolferRepository.update(id, input as Partial<IGolfer>);
     const auditActor = buildAuditActorContext(context, golfer.clubId.toString());
