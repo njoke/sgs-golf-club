@@ -35,6 +35,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     {
       label: "Roster",
       href: primaryClubId ? `/manage/${primaryClubId}/roster` : "/dashboard",
+      aliases: primaryClubId ? [`/manage/${primaryClubId}/golfer`] : [],
     },
     {
       label: "Account",
@@ -79,7 +80,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <aside className="w-full rounded-panel border bg-ui-sidebar p-4 text-white shadow-panel lg:sticky lg:top-6 lg:w-64 lg:self-start">
           <nav className="grid gap-2">
             {navItems.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const activePrefixes = [item.href, ...(item.aliases ?? [])];
+              const active = activePrefixes.some(
+                (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+              );
               return (
                 <Link
                   key={item.href}

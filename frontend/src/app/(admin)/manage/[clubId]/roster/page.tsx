@@ -1,6 +1,7 @@
 "use client";
 
 import { gql, useMutation, useQuery } from "@apollo/client";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { LoadingView } from "@/components/shared/LoadingView";
@@ -222,7 +223,12 @@ export default function RosterPage() {
                     <td className="px-5 py-4 text-ui-muted">{golfer.localNumber ?? "—"}</td>
                     <td className="px-5 py-4">
                       <p className="font-semibold text-ui-ink">
-                        {golfer.lastName}, {golfer.firstName}
+                        <Link
+                          href={`/manage/${clubId}/golfer/${golfer.id}`}
+                          className="hover:text-brand-green"
+                        >
+                          {golfer.lastName}, {golfer.firstName}
+                        </Link>
                       </p>
                       <p className="mt-1 text-xs uppercase tracking-[0.16em] text-ui-muted">
                         {golfer.email ?? "No email"}
@@ -236,14 +242,22 @@ export default function RosterPage() {
                     </td>
                     <td className="px-5 py-4 text-ui-ink">{golfer.membershipCode ?? "—"}</td>
                     <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => handleToggle(golfer)}
-                        disabled={isBusy}
-                        className="rounded-full border border-ui-line bg-white px-4 py-2 text-xs font-semibold text-ui-ink hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {golfer.membershipStatus === "ACTIVE" ? "Deactivate" : "Activate"}
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/manage/${clubId}/golfer/${golfer.id}`}
+                          className="rounded-full border border-ui-line bg-white px-4 py-2 text-xs font-semibold text-ui-ink hover:border-brand-gold"
+                        >
+                          View
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(golfer)}
+                          disabled={isBusy}
+                          className="rounded-full border border-ui-line bg-white px-4 py-2 text-xs font-semibold text-ui-ink hover:border-brand-gold disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {golfer.membershipStatus === "ACTIVE" ? "Deactivate" : "Activate"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
