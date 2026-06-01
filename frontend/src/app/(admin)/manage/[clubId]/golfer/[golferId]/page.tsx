@@ -476,13 +476,18 @@ export default function AdminGolferDetailPage() {
   }
 
   async function handleProfileSave() {
+    const golferRecord = golfer;
+    if (!golferRecord) {
+      return;
+    }
+
     setFeedback(null);
     setErrorMessage(null);
 
     try {
       await updateGolfer({
         variables: {
-          id: golfer.id,
+          id: golferRecord.id,
           input: {
             firstName: profileForm.firstName,
             middleName: profileForm.middleName || undefined,
@@ -511,11 +516,16 @@ export default function AdminGolferDetailPage() {
   }
 
   async function handleMembershipToggle() {
+    const golferRecord = golfer;
+    if (!golferRecord) {
+      return;
+    }
+
     setFeedback(null);
     setErrorMessage(null);
 
     try {
-      if (golfer.membershipStatus === "ACTIVE") {
+      if (golferRecord.membershipStatus === "ACTIVE") {
         const reason = window.prompt("Reason for deactivation", "Moved out of active club roster");
         if (!reason) {
           return;
@@ -523,7 +533,7 @@ export default function AdminGolferDetailPage() {
 
         await deactivateGolfer({
           variables: {
-            id: golfer.id,
+            id: golferRecord.id,
             reason,
           },
         });
@@ -531,7 +541,7 @@ export default function AdminGolferDetailPage() {
       } else {
         await activateGolfer({
           variables: {
-            id: golfer.id,
+            id: golferRecord.id,
           },
         });
         setFeedback("Golfer activated.");

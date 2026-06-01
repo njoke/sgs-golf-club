@@ -103,6 +103,17 @@ export interface GolferRecord {
   updatedAt?: string;
 }
 
+export interface GolferSearchResultRecord {
+  ghinNumber?: string | null;
+  firstName: string;
+  lastName: string;
+  email?: string | null;
+  city?: string | null;
+  state?: string | null;
+  currentClubName?: string | null;
+  canAddToClub: boolean;
+}
+
 export interface ScoreRecord {
   id: string;
   datePlayed: string;

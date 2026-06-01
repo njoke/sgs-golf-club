@@ -4,6 +4,7 @@ import { gql, useMutation, useQuery } from "@apollo/client";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { AdminGolferAddPanel } from "@/components/admin/AdminGolferAddPanel";
 import { LoadingView } from "@/components/shared/LoadingView";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatHandicap } from "@/utils/formatHandicap";
@@ -61,6 +62,9 @@ export default function RosterPage() {
   const [membershipStatus, setMembershipStatus] = useState("");
   const [gender, setGender] = useState("");
   const [includeInactive, setIncludeInactive] = useState(true);
+  const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data, loading, error, refetch } = useQuery(GET_ROSTER, {
     skip: !clubId,
@@ -103,17 +107,28 @@ export default function RosterPage() {
   const isBusy = activateState.loading || deactivateState.loading;
 
   async function handleToggle(golfer: GolferRecord) {
-    if (golfer.membershipStatus === "ACTIVE") {
-      const reason = window.prompt("Reason for deactivation", "Moved out of active club roster");
-      if (!reason) {
-        return;
-      }
-      await deactivateGolfer({ variables: { id: golfer.id, reason } });
-    } else {
-      await activateGolfer({ variables: { id: golfer.id } });
-    }
+    setFeedback(null);
+    setErrorMessage(null);
 
-    await refetch();
+    try {
+      if (golfer.membershipStatus === "ACTIVE") {
+        const reason = window.prompt("Reason for deactivation", "Moved out of active club roster");
+        if (!reason) {
+          return;
+        }
+        await deactivateGolfer({ variables: { id: golfer.id, reason } });
+        setFeedback(`${golfer.firstName} ${golfer.lastName} deactivated.`);
+      } else {
+        await activateGolfer({ variables: { id: golfer.id } });
+        setFeedback(`${golfer.firstName} ${golfer.lastName} activated.`);
+      }
+
+      await refetch();
+    } catch (mutationError) {
+      setErrorMessage(
+        mutationError instanceof Error ? mutationError.message : "Roster update failed."
+      );
+    }
   }
 
   return (
@@ -130,13 +145,42 @@ export default function RosterPage() {
           </div>
           <button
             type="button"
-            disabled
-            className="rounded-full border border-ui-line bg-white px-5 py-3 text-sm font-semibold text-ui-muted"
+            onClick={() => {
+              setFeedback(null);
+              setErrorMessage(null);
+              setIsAddPanelOpen((current) => !current);
+            }}
+            className="rounded-full bg-brand-green px-5 py-3 text-sm font-semibold text-white hover:bg-brand-green-light"
           >
-            Add golfer flow next
+            {isAddPanelOpen ? "Close add golfer" : "Add golfer"}
           </button>
         </div>
       </section>
+
+      {feedback ? (
+        <p className="rounded-3xl border border-status-active/20 bg-status-active/8 px-5 py-4 text-sm text-status-active">
+          {feedback}
+        </p>
+      ) : null}
+
+      {errorMessage ? (
+        <p className="rounded-3xl border border-status-withdrawn/20 bg-status-withdrawn/8 px-5 py-4 text-sm text-status-withdrawn">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      {isAddPanelOpen ? (
+        <AdminGolferAddPanel
+          clubId={clubId}
+          onCancel={() => setIsAddPanelOpen(false)}
+          onAdded={async (message) => {
+            await refetch();
+            setFeedback(message);
+            setErrorMessage(null);
+            setIsAddPanelOpen(false);
+          }}
+        />
+      ) : null}
 
       <section className="rounded-panel border bg-ui-card/90 p-6 shadow-panel">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
