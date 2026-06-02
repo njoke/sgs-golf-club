@@ -59,28 +59,29 @@ function loginWithGraphQL({ email, password, path }: LoginOptions) {
 
     const token = loginPayload?.token ?? "";
     const user = loginPayload?.user;
+    const sessionUser = {
+      id: user?.id,
+      email: user?.email,
+      firstName: user?.firstName,
+      lastName: user?.lastName,
+      role: user?.role,
+      clubIds: user?.clubIds ?? [],
+      golferId: user?.golferId ?? null,
+      status: user?.status ?? undefined,
+    };
 
     expect(token, "auth token").to.not.equal("");
     expect(user, "auth user").to.exist;
 
-    cy.visit(path, {
+    cy.visit("/", {
       onBeforeLoad(win) {
-        win.document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; SameSite=Lax`;
-        win.localStorage.setItem(
-          USER_STORAGE_KEY,
-          JSON.stringify({
-            id: user?.id,
-            email: user?.email,
-            firstName: user?.firstName,
-            lastName: user?.lastName,
-            role: user?.role,
-            clubIds: user?.clubIds ?? [],
-            golferId: user?.golferId ?? null,
-            status: user?.status ?? undefined,
-          })
-        );
+        win.localStorage.clear();
+        win.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(sessionUser));
       },
     });
+
+    cy.setCookie(AUTH_COOKIE_NAME, token);
+    cy.visit(path);
   });
 }
 

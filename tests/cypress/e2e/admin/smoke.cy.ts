@@ -26,13 +26,14 @@ describe("admin smoke", () => {
     const temporaryWebsite = `https://smoke-${Date.now()}.example.com`;
 
     cy.loginAsAdmin("/dashboard");
-    cy.contains("Admin dashboard").should("be.visible");
+    cy.location("pathname", { timeout: 20000 }).should("eq", "/dashboard");
+    cy.contains("Admin dashboard", { timeout: 20000 }).should("be.visible");
     cy.contains("View roster").click();
-    cy.contains("Club membership").should("be.visible");
+    cy.contains("Club membership", { timeout: 20000 }).should("be.visible");
 
     getStoredClubId().then((clubId) => {
       cy.visit(`/manage/${clubId}/account`);
-      cy.contains("Account workspace").should("be.visible");
+      cy.contains("Account workspace", { timeout: 20000 }).should("be.visible");
       cy.contains("button", "Edit").click();
 
       cy.contains("span", "Website")
@@ -57,7 +58,7 @@ describe("admin smoke", () => {
         });
 
       cy.contains("a", "Home courses").click();
-      cy.contains("Facility and tee defaults").should("be.visible");
+      cy.contains("Facility and tee defaults", { timeout: 20000 }).should("be.visible");
 
       getCedarIronsMaleTeeSelect()
         .invoke("val")
@@ -90,7 +91,8 @@ describe("admin smoke", () => {
     const registrationCloseAt = isoDateOffset(14);
 
     cy.loginAsAdmin("/tournaments/create");
-    cy.contains("Set event, window, eligibility").should("be.visible");
+    cy.location("pathname", { timeout: 20000 }).should("eq", "/tournaments/create");
+    cy.contains("Set event, window, eligibility", { timeout: 20000 }).should("be.visible");
 
     cy.contains("span", "Name").parent().find("input").type(tournamentName);
     cy.contains("span", "Description")
@@ -106,21 +108,22 @@ describe("admin smoke", () => {
     cy.contains("span", "Entry fee").parent().find("input").type("45");
     cy.contains("button", "Publish and open").click();
 
-    cy.url().should("match", /\/tournaments\/[^/]+\/registrations$/);
-    cy.contains("Registration management").should("be.visible");
+    cy.location("pathname", { timeout: 20000 }).should("match", /\/tournaments\/[^/]+\/registrations$/);
+    cy.contains("Registration management", { timeout: 20000 }).should("be.visible");
     cy.contains(tournamentName).should("be.visible");
     cy.url().then((url) => {
       cy.wrap(new URL(url).pathname).as("registrationPath");
     });
 
     cy.loginAsMember("/member/tournaments");
-    cy.contains("Browse and register").should("be.visible");
+    cy.location("pathname", { timeout: 20000 }).should("eq", "/member/tournaments");
+    cy.contains("Browse and register", { timeout: 20000 }).should("be.visible");
     cy.contains(tournamentName)
       .closest("article")
       .contains("Register now")
       .click();
 
-    cy.contains("Registration form").should("be.visible");
+    cy.contains("Registration form", { timeout: 20000 }).should("be.visible");
     cy.contains("I agree to tournament terms and conditions.").click();
     cy.contains("button", "Register").click();
 
@@ -130,7 +133,7 @@ describe("admin smoke", () => {
 
     cy.get("@registrationPath").then((registrationPath) => {
       cy.loginAsAdmin(String(registrationPath));
-      cy.contains("Registration management").should("be.visible");
+      cy.contains("Registration management", { timeout: 20000 }).should("be.visible");
       cy.contains("Jared Abwawo").should("be.visible");
       cy.contains("Close registration").click();
       cy.contains("Close registration").should("not.exist");

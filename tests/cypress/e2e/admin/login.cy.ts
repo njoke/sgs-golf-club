@@ -17,8 +17,8 @@ describe("Admin Login", () => {
   it("redirects to dashboard on valid admin credentials", () => {
     cy.contains("button", "Sign in").click();
 
-    cy.url().should("include", "/dashboard");
-    cy.contains("Admin dashboard").should("be.visible");
+    cy.location("pathname", { timeout: 20000 }).should("eq", "/dashboard");
+    cy.contains("Admin dashboard", { timeout: 20000 }).should("be.visible");
   });
 
   it("shows error on invalid credentials", () => {

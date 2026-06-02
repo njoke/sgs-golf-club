@@ -119,8 +119,7 @@ services:
         condition: service_healthy
     entrypoint:
       - sh
-      - -lc
-    command: sh tests/cypress/scripts/run-on-start.sh
+      - tests/cypress/scripts/run-on-start.sh
     restart: "no"
 
 volumes:

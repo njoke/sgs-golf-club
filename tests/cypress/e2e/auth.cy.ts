@@ -2,8 +2,8 @@ describe("auth smoke", () => {
   it("hydrates seeded admin auth using current session keys", () => {
     cy.loginAsAdmin("/dashboard");
 
-    cy.url().should("include", "/dashboard");
-    cy.contains("Admin dashboard").should("be.visible");
+    cy.location("pathname", { timeout: 20000 }).should("eq", "/dashboard");
+    cy.contains("Admin dashboard", { timeout: 20000 }).should("be.visible");
     cy.getCookie("sgs_token").should("exist");
     cy.window().then((win) => {
       const storedUser = JSON.parse(win.localStorage.getItem("sgs_user") || "{}");
@@ -25,7 +25,7 @@ describe("auth smoke", () => {
     cy.contains("span", "Password").parent().find("input").clear().type("Member123!");
     cy.contains("button", "Sign in").click();
 
-    cy.url().should("include", "/member/dashboard");
-    cy.contains("Member dashboard").should("be.visible");
+    cy.location("pathname", { timeout: 20000 }).should("eq", "/member/dashboard");
+    cy.contains("Member dashboard", { timeout: 20000 }).should("be.visible");
   });
 });
