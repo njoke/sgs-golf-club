@@ -1,5 +1,6 @@
 import { requireRole } from "../../auth/permissions";
 import { AuditLogRepository, type AuditLogFilterInput } from "../../repositories/auditLog.repository";
+import { ScoreRepository } from "../../repositories/score.repository";
 import type { GraphQLContext } from "../context";
 import type { IAuditLog } from "../../models/auditLog.model";
 import { toPlainObject } from "./toPlainObject";
@@ -25,7 +26,24 @@ export const auditLogResolvers = {
 
       const scope =
         ctx.user?.role === "SUPER_ADMIN" ? undefined : { clubIds: ctx.user?.clubIds ?? [] };
-      const { logs, total } = await AuditLogRepository.find(filter, scope);
+      const relatedEntityFilters = [...(filter.relatedEntityFilters ?? [])];
+      if (filter.entityType === "GOLFER" && filter.entityId) {
+        const scoreIds = await ScoreRepository.findIdsByGolfer(filter.entityId);
+        if (scoreIds.length) {
+          relatedEntityFilters.push({
+            entityType: "SCORE",
+            entityIds: scoreIds,
+          });
+        }
+      }
+
+      const { logs, total } = await AuditLogRepository.find(
+        {
+          ...filter,
+          relatedEntityFilters,
+        },
+        scope
+      );
       const page = filter.page ?? 1;
       const pageSize = Math.min(filter.pageSize ?? 25, 100);
 

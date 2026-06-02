@@ -3,6 +3,7 @@ import { ErrorCodes } from "../../src/errors/errorCodes";
 import type { GraphQLContext } from "../../src/graphql/context";
 import { auditLogResolvers } from "../../src/graphql/resolvers/auditLog.resolver";
 import { AuditLogRepository } from "../../src/repositories/auditLog.repository";
+import { ScoreRepository } from "../../src/repositories/score.repository";
 import { auditService } from "../../src/services/audit.service";
 
 const clubId = new Types.ObjectId().toString();
@@ -71,6 +72,7 @@ describe("audit service and resolver", () => {
 
   it("scopes audit log queries to caller clubs", async () => {
     const logId = new Types.ObjectId();
+    jest.spyOn(ScoreRepository, "findIdsByGolfer").mockResolvedValue([]);
     jest.spyOn(AuditLogRepository, "find").mockResolvedValue({
       logs: [
         {
@@ -99,10 +101,42 @@ describe("audit service and resolver", () => {
     );
 
     expect(AuditLogRepository.find).toHaveBeenCalledWith(
-      { entityId: expect.any(String) },
+      { entityId: expect.any(String), relatedEntityFilters: [] },
       { clubIds: [clubId] }
     );
     expect(result.pageInfo.totalCount).toBe(1);
     expect(result.nodes[0].id).toBe(logId.toString());
+  });
+
+  it("includes score audit rows when querying a golfer entity log", async () => {
+    const golferId = new Types.ObjectId().toString();
+    jest.spyOn(ScoreRepository, "findIdsByGolfer").mockResolvedValue(["score-1", "score-2"]);
+    jest.spyOn(AuditLogRepository, "find").mockResolvedValue({
+      logs: [],
+      total: 0,
+    });
+
+    await auditLogResolvers.Query.auditLogs(
+      undefined,
+      { filter: { entityType: "GOLFER", entityId: golferId, page: 1, pageSize: 20 } },
+      makeAdminContext()
+    );
+
+    expect(ScoreRepository.findIdsByGolfer).toHaveBeenCalledWith(golferId);
+    expect(AuditLogRepository.find).toHaveBeenCalledWith(
+      {
+        entityType: "GOLFER",
+        entityId: golferId,
+        page: 1,
+        pageSize: 20,
+        relatedEntityFilters: [
+          {
+            entityType: "SCORE",
+            entityIds: ["score-1", "score-2"],
+          },
+        ],
+      },
+      { clubIds: [clubId] }
+    );
   });
 });

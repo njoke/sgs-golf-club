@@ -12,6 +12,11 @@ export interface ScoreHistoryFilterInput {
 }
 
 export const ScoreRepository = {
+  async findIdsByGolfer(golferId: string): Promise<string[]> {
+    const scores = await Score.find({ golferId }).select("_id").lean();
+    return scores.map((score) => score._id.toString());
+  },
+
   async findByGolfer(
     filter: ScoreHistoryFilterInput
   ): Promise<{ scores: IScore[]; total: number }> {

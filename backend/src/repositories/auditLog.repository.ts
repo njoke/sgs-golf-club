@@ -1,6 +1,12 @@
 import { type FilterQuery, Types } from "mongoose";
 import { AuditLog, type IAuditLog } from "../models/auditLog.model";
 
+interface AuditEntityFilterInput {
+  entityType?: string;
+  entityId?: string;
+  entityIds?: string[];
+}
+
 export interface AuditLogFilterInput {
   entityType?: string;
   entityId?: string;
@@ -10,6 +16,28 @@ export interface AuditLogFilterInput {
   dateTo?: Date;
   page?: number;
   pageSize?: number;
+  relatedEntityFilters?: AuditEntityFilterInput[];
+}
+
+function buildEntityClause(filter: AuditEntityFilterInput): FilterQuery<IAuditLog> | null {
+  const clause: FilterQuery<IAuditLog> = {};
+
+  if (filter.entityType) {
+    clause.entityType = filter.entityType;
+  }
+
+  const entityIds = Array.from(new Set(filter.entityIds ?? []));
+  if (filter.entityId && !entityIds.includes(filter.entityId)) {
+    entityIds.push(filter.entityId);
+  }
+
+  if (entityIds.length === 1) {
+    clause.entityId = entityIds[0];
+  } else if (entityIds.length > 1) {
+    clause.entityId = { $in: entityIds };
+  }
+
+  return Object.keys(clause).length ? clause : null;
 }
 
 export const AuditLogRepository = {
@@ -23,8 +51,17 @@ export const AuditLogRepository = {
   ): Promise<{ logs: IAuditLog[]; total: number }> {
     const query: FilterQuery<IAuditLog> = {};
 
-    if (filter.entityType) query.entityType = filter.entityType;
-    if (filter.entityId) query.entityId = filter.entityId;
+    const entityClauses = [
+      buildEntityClause({ entityType: filter.entityType, entityId: filter.entityId }),
+      ...(filter.relatedEntityFilters ?? []).map(buildEntityClause),
+    ].filter((clause): clause is FilterQuery<IAuditLog> => Boolean(clause));
+
+    if (entityClauses.length === 1) {
+      Object.assign(query, entityClauses[0]);
+    } else if (entityClauses.length > 1) {
+      query.$or = entityClauses;
+    }
+
     if (filter.action) query.action = filter.action;
     if (filter.actorUserId) query.actorUserId = new Types.ObjectId(filter.actorUserId);
     if (filter.dateFrom || filter.dateTo) {
