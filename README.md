@@ -19,8 +19,8 @@ Full-stack golf club management system with handicap tracking, tournament manage
 # Start all services with hot reload
 docker-compose -f docker-compose.dev.yml up --build
 
-# Seed database (in a second terminal, once containers are healthy)
-docker exec sgs_backend_dev npm run seed
+# Cypress smoke runs automatically in the dev stack
+docker compose -f docker-compose.dev.yml logs -f cypress
 
 # Tear down
 docker-compose -f docker-compose.dev.yml down
@@ -37,6 +37,12 @@ docker-compose -f docker-compose.dev.yml down -v
 | GraphQL API | http://localhost:4000/graphql |
 | Mongo Express | http://localhost:8081 (dev only) |
 | MongoDB | localhost:27017 |
+
+## Dev Stack Notes
+
+- Backend dev boot now auto-seeds the demo club, users, golfers, course, tournament, and sample scores.
+- Frontend browser traffic goes through `/api/graphql`, which proxies to the backend container in Docker and still works for host-browser development.
+- A dedicated `cypress` container waits for healthy `backend` and `frontend` services, then runs the smoke suite automatically on startup.
 
 ## Default Seed Credentials
 

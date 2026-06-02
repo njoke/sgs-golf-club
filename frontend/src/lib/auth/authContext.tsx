@@ -50,6 +50,8 @@ const LOGOUT_MUTATION = `
   }
 `;
 
+const GRAPHQL_URL = process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "/api/graphql";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -75,19 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function authenticate(email: string, password: string): Promise<AuthUser> {
-    const response = await fetch(
-      process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          query: LOGIN_MUTATION,
-          variables: { input: { email, password } },
-        }),
-      }
-    );
+    const response = await fetch(GRAPHQL_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        query: LOGIN_MUTATION,
+        variables: { input: { email, password } },
+      }),
+    });
 
     const payload = (await response.json()) as {
       data?: { login?: AuthPayload };
@@ -107,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const currentToken = getClientCookie(AUTH_COOKIE_NAME);
       if (currentToken) {
-        await fetch(process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql", {
+        await fetch(GRAPHQL_URL, {
           method: "POST",
           headers: {
             "content-type": "application/json",

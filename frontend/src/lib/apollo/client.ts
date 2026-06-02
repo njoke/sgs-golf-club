@@ -2,8 +2,10 @@ import { ApolloClient, InMemoryCache, createHttpLink, from } from "@apollo/clien
 import { setContext } from "@apollo/client/link/context";
 import { AUTH_COOKIE_NAME, getClientCookie } from "@/lib/auth/session";
 
+const GRAPHQL_URL = process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "/api/graphql";
+
 const httpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql",
+  uri: GRAPHQL_URL,
   credentials: "include",
 });
 

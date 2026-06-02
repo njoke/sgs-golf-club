@@ -1,59 +1,110 @@
 interface LoginOptions {
   email: string;
   password: string;
+  path: string;
 }
 
-function loginWithGraphQL({ email, password }: LoginOptions) {
+interface LoginResponse {
+  data?: {
+    login?: {
+      token: string;
+      user: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        role: string;
+        clubIds?: string[];
+        golferId?: string | null;
+        status?: string | null;
+      };
+    };
+  };
+  errors?: Array<{ message?: string }>;
+}
+
+const AUTH_COOKIE_NAME = "sgs_token";
+const USER_STORAGE_KEY = "sgs_user";
+const GRAPHQL_URL = Cypress.env("graphqlUrl") || "http://localhost:4000/graphql";
+
+function loginWithGraphQL({ email, password, path }: LoginOptions) {
   cy.request({
     method: "POST",
-    url: "http://localhost:4000/graphql",
+    url: GRAPHQL_URL,
     body: {
-      query: `mutation Login($email: String!, $password: String!) {
-        login(input: { email: $email, password: $password }) {
+      query: `mutation Login($input: LoginInput!) {
+        login(input: $input) {
           token
-          user { id email role clubIds golferId }
+          user {
+            id
+            email
+            firstName
+            lastName
+            role
+            clubIds
+            golferId
+            status
+          }
         }
       }`,
-      variables: { email, password },
+      variables: {
+        input: { email, password },
+      },
     },
   }).then((res) => {
-    const token = res.body.data.login.token;
-    const user = res.body.data.login.user;
-    cy.window().then((win) => {
-      win.localStorage.setItem("token", token);
-      win.localStorage.setItem(
-        "user",
-        JSON.stringify({
-          userId: user.id,
-          email: user.email,
-          role: user.role,
-          clubId: user.clubIds?.[0],
-          golferId: user.golferId,
-        })
-      );
+    const body = res.body as LoginResponse;
+    const loginPayload = body.data?.login;
+
+    expect(loginPayload, body.errors?.[0]?.message ?? "login payload missing").to.exist;
+
+    const token = loginPayload?.token ?? "";
+    const user = loginPayload?.user;
+
+    expect(token, "auth token").to.not.equal("");
+    expect(user, "auth user").to.exist;
+
+    cy.visit(path, {
+      onBeforeLoad(win) {
+        win.document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; SameSite=Lax`;
+        win.localStorage.setItem(
+          USER_STORAGE_KEY,
+          JSON.stringify({
+            id: user?.id,
+            email: user?.email,
+            firstName: user?.firstName,
+            lastName: user?.lastName,
+            role: user?.role,
+            clubIds: user?.clubIds ?? [],
+            golferId: user?.golferId ?? null,
+            status: user?.status ?? undefined,
+          })
+        );
+      },
     });
   });
 }
 
-Cypress.Commands.add("loginAsAdmin", () => {
+Cypress.Commands.add("loginAsAdmin", (path = "/dashboard") => {
   loginWithGraphQL({
     email: "admin@sgs.golf",
     password: "Admin123!",
+    path,
   });
 });
 
-Cypress.Commands.add("loginAsMember", () => {
+Cypress.Commands.add("loginAsMember", (path = "/member/dashboard") => {
   loginWithGraphQL({
     email: "jared@sgs.golf",
     password: "Member123!",
+    path,
   });
 });
 
 declare global {
   namespace Cypress {
     interface Chainable {
-      loginAsAdmin(): Chainable<void>;
-      loginAsMember(): Chainable<void>;
+      loginAsAdmin(path?: string): Chainable<void>;
+      loginAsMember(path?: string): Chainable<void>;
     }
   }
 }

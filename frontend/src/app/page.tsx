@@ -27,7 +27,7 @@ export default function HomePage() {
               Open portal
             </Link>
             <a
-              href="http://localhost:4000/graphql"
+              href="/api/graphql"
               className="rounded-full border border-ui-line bg-white/70 px-6 py-3 text-sm font-semibold text-ui-ink hover:border-brand-gold hover:text-brand-green"
             >
               View GraphQL
