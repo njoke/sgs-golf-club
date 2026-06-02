@@ -1,7 +1,8 @@
 "use client";
 
 import { gql, useMutation, useQuery } from "@apollo/client";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { LoadingView } from "@/components/shared/LoadingView";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -107,9 +108,11 @@ function formatCurrency(value?: number | null): string {
 export default function TournamentRegistrationsPage() {
   const auth = useAuth();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const tournamentId = Array.isArray(params.id) ? params.id[0] : params.id;
   const clubId = auth.primaryClubId;
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const updatedMessage = searchParams.get("updated");
 
   const { data, loading, error, refetch } = useQuery(GET_TOURNAMENT_REGISTRATIONS, {
     skip: auth.isLoading || !clubId || !tournamentId,
@@ -188,6 +191,12 @@ export default function TournamentRegistrationsPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge status={tournament?.registrationStatus ?? "DRAFT"} />
+            <Link
+              href={`/tournaments/${tournamentId}/edit`}
+              className="rounded-full border border-ui-line bg-white px-4 py-2 text-sm font-semibold text-ui-ink hover:border-brand-gold"
+            >
+              Edit tournament
+            </Link>
             {tournament?.registrationStatus === "OPEN" ? (
               <button
                 type="button"
@@ -228,6 +237,12 @@ export default function TournamentRegistrationsPage() {
       {errorMessage ? (
         <p className="rounded-3xl border border-status-withdrawn/20 bg-status-withdrawn/8 px-5 py-4 text-sm text-status-withdrawn">
           {errorMessage}
+        </p>
+      ) : null}
+
+      {updatedMessage ? (
+        <p className="rounded-3xl border border-status-active/20 bg-status-active/8 px-5 py-4 text-sm text-status-active">
+          Tournament updated.
         </p>
       ) : null}
 

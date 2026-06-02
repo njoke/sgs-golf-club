@@ -35,6 +35,7 @@ export interface IClub {
   website?: string;
   hubspotCompanyId?: string;
   handicapChairperson?: string;
+  membershipTypes: string[];
   contacts: IClubContact[];
   lastStatusUpdate?: Date;
   createdAt: Date;
@@ -77,6 +78,7 @@ const ClubSchema = new Schema<IClub>(
     website: String,
     hubspotCompanyId: String,
     handicapChairperson: String,
+    membershipTypes: { type: [String], default: [] },
     contacts: [ClubContactSchema],
     lastStatusUpdate: { type: Date, default: Date.now },
   },

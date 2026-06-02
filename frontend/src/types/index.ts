@@ -58,6 +58,7 @@ export interface ClubRecord extends ClubSummary {
   website?: string | null;
   hubspotCompanyId?: string | null;
   handicapChairperson?: string | null;
+  membershipTypes?: string[] | null;
   contacts?: ClubContactRecord[];
 }
 

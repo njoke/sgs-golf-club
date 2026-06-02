@@ -19,6 +19,7 @@ const clubSeed = {
   website: "",
   hubspotCompanyId: "15495027727",
   handicapChairperson: "Ken Njonge",
+  membershipTypes: ["R", "JR", "ASSOC"],
   contacts: [
     {
       contactType: "PRIMARY",
@@ -37,7 +38,19 @@ const clubSeed = {
 
 export async function seedClub(): Promise<IClub> {
   const existing = await Club.findOne({ clubNumber: clubSeed.clubNumber });
-  if (existing) return existing as IClub;
+  if (existing) {
+    const nextMembershipTypes =
+      existing.membershipTypes?.length ?? 0 ? existing.membershipTypes : clubSeed.membershipTypes;
+    await Club.updateOne(
+      { _id: existing._id },
+      {
+        $set: {
+          membershipTypes: nextMembershipTypes,
+        },
+      }
+    );
+    return (await Club.findById(existing._id).lean()) as IClub;
+  }
 
   const club = await Club.create(clubSeed);
   console.log(`✓ Club seeded: ${club.name} (${club._id})`);

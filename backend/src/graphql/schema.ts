@@ -97,6 +97,7 @@ export const typeDefs = gql`
     website: String
     hubspotCompanyId: String
     handicapChairperson: String
+    membershipTypes: [String!]!
     contacts: [ClubContact!]!
     createdAt: DateTime!
     updatedAt: DateTime!
@@ -123,6 +124,7 @@ export const typeDefs = gql`
     website: String
     hubspotCompanyId: String
     handicapChairperson: String
+    membershipTypes: [String!]
     contacts: [ClubContactInput!]
   }
 

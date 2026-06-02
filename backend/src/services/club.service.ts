@@ -15,6 +15,7 @@ export interface UpdateClubInput {
   website?: string;
   hubspotCompanyId?: string;
   handicapChairperson?: string;
+  membershipTypes?: string[];
   contacts?: Array<{
     contactType: string;
     name?: string;
@@ -70,6 +71,7 @@ export const clubService = {
       "website",
       "hubspotCompanyId",
       "handicapChairperson",
+      "membershipTypes",
       "contactsUpdated",
     ];
     const { before: auditBefore, after: auditAfter } = diffAuditFields(
@@ -81,6 +83,7 @@ export const clubService = {
         website: before.website,
         hubspotCompanyId: before.hubspotCompanyId,
         handicapChairperson: before.handicapChairperson,
+        membershipTypes: before.membershipTypes,
         contactsUpdated: input.contacts ? false : undefined,
       },
       {
@@ -91,6 +94,7 @@ export const clubService = {
         website: updated.website,
         hubspotCompanyId: updated.hubspotCompanyId,
         handicapChairperson: updated.handicapChairperson,
+        membershipTypes: updated.membershipTypes,
         contactsUpdated: input.contacts ? true : undefined,
       },
       auditKeys

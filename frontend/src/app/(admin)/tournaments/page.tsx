@@ -234,6 +234,12 @@ export default function TournamentsPage() {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link
+                  href={`/tournaments/${tournament.id}/edit`}
+                  className="rounded-full border border-ui-line bg-white px-4 py-2 text-xs font-semibold text-ui-ink hover:border-brand-gold"
+                >
+                  Edit tournament
+                </Link>
+                <Link
                   href={`/tournaments/${tournament.id}/registrations`}
                   className="rounded-full border border-ui-line bg-white px-4 py-2 text-xs font-semibold text-ui-ink hover:border-brand-gold"
                 >
@@ -318,6 +324,13 @@ export default function TournamentsPage() {
                             Close registration
                           </button>
                         )}
+
+                        <Link
+                          href={`/tournaments/${tournament.id}/edit`}
+                          className="rounded-full border border-ui-line bg-white px-4 py-2 text-xs font-semibold text-ui-ink hover:border-brand-gold"
+                        >
+                          Edit
+                        </Link>
 
                         <Link
                           href={`/tournaments/${tournament.id}/registrations`}

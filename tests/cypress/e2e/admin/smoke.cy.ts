@@ -85,6 +85,7 @@ describe("admin smoke", () => {
 
   it("creates a tournament, registers a member, and manages registrations", () => {
     const tournamentName = `Cypress Smoke ${Date.now()}`;
+    const updatedTournamentName = `${tournamentName} Updated`;
     const startDate = isoDateOffset(21);
     const endDate = isoDateOffset(22);
     const registrationOpenAt = isoDateOffset(-1);
@@ -111,6 +112,18 @@ describe("admin smoke", () => {
     cy.location("pathname", { timeout: 20000 }).should("match", /\/tournaments\/[^/]+\/registrations$/);
     cy.contains("Registration management", { timeout: 20000 }).should("be.visible");
     cy.contains(tournamentName).should("be.visible");
+
+    cy.contains("a", "Edit tournament").click();
+    cy.location("pathname", { timeout: 20000 }).should("match", /\/tournaments\/[^/]+\/edit$/);
+    cy.contains("Tune event, window, eligibility", { timeout: 20000 }).should("be.visible");
+    cy.contains("span", "Name").parent().find("input").clear().type(updatedTournamentName);
+    cy.contains("span", "Entry fee").parent().find("input").clear().type("55");
+    cy.contains("button", "Save changes").click();
+
+    cy.location("pathname", { timeout: 20000 }).should("match", /\/tournaments\/[^/]+\/registrations$/);
+    cy.contains("Tournament updated.", { timeout: 20000 }).should("be.visible");
+    cy.contains(updatedTournamentName).should("be.visible");
+
     cy.url().then((url) => {
       cy.wrap(new URL(url).pathname).as("registrationPath");
     });
@@ -118,7 +131,7 @@ describe("admin smoke", () => {
     cy.loginAsMember("/member/tournaments");
     cy.location("pathname", { timeout: 20000 }).should("eq", "/member/tournaments");
     cy.contains("Browse and register", { timeout: 20000 }).should("be.visible");
-    cy.contains(tournamentName)
+    cy.contains(updatedTournamentName)
       .closest("article")
       .contains("Register now")
       .click();
@@ -129,7 +142,7 @@ describe("admin smoke", () => {
 
     cy.url().should("include", "/member/tournaments?registered=");
     cy.contains("Registration submitted. Status:").should("be.visible");
-    cy.contains(tournamentName).should("be.visible");
+    cy.contains(updatedTournamentName).should("be.visible");
 
     cy.get("@registrationPath").then((registrationPath) => {
       cy.loginAsAdmin(String(registrationPath));

@@ -8,6 +8,8 @@ function mapClub(club: IClub) {
   return {
     ...plainClub,
     id: plainClub._id.toString(),
+    membershipTypes: plainClub.membershipTypes ?? [],
+    contacts: plainClub.contacts ?? [],
   };
 }
 
