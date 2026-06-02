@@ -109,9 +109,12 @@ services:
     environment:
       CYPRESS_BASE_URL: http://frontend:3000
       CYPRESS_GRAPHQL_URL: http://backend:4000/graphql
-      CYPRESS_BACKEND_HEALTH_URL: http://backend:4000/health
-      CYPRESS_WAIT_TIMEOUT_MS: 180000
-      CYPRESS_WAIT_INTERVAL_MS: 2000
+      WAIT_LOG_PREFIX: cypress-wait
+      WAIT_FRONTEND_BASE_URL: http://frontend:3000
+      WAIT_FRONTEND_PATH: /login
+      WAIT_BACKEND_HEALTH_URL: http://backend:4000/health
+      WAIT_TIMEOUT_MS: 180000
+      WAIT_INTERVAL_MS: 2000
     depends_on:
       backend:
         condition: service_healthy
@@ -122,8 +125,35 @@ services:
       - tests/cypress/scripts/run-on-start.sh
     restart: "no"
 
+  karate:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: sgs_karate_dev
+    working_dir: /workspace/tests/karate
+    volumes:
+      - .:/workspace
+      - type: volume
+        source: karate_m2
+        target: /root/.m2
+        volume:
+          nocopy: true
+    environment:
+      KARATE_BASE_URL: http://backend:4000/graphql
+      WAIT_LOG_PREFIX: karate-wait
+      WAIT_BACKEND_HEALTH_URL: http://backend:4000/health
+      WAIT_SKIP_FRONTEND: "true"
+      WAIT_TIMEOUT_MS: 180000
+      WAIT_INTERVAL_MS: 2000
+    depends_on:
+      backend:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - /workspace/tests/karate/scripts/run-on-start.sh
+    restart: "no"
+
 volumes:
   mongo_data_dev:
   backend_node_modules:
   frontend_node_modules:
   frontend_next:
+  karate_m2:

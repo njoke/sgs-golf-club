@@ -1,4 +1,4 @@
-import { GraphQLFormattedError } from "graphql";
+import { GraphQLError, GraphQLFormattedError } from "graphql";
 import { AppError } from "./AppError";
 import { ErrorCodes } from "./errorCodes";
 
@@ -6,12 +6,15 @@ export function formatGraphQLError(
   formattedError: GraphQLFormattedError,
   error: unknown
 ): GraphQLFormattedError {
-  if (error instanceof AppError) {
+  const originalError =
+    error instanceof GraphQLError && error.originalError ? error.originalError : error;
+
+  if (originalError instanceof AppError) {
     return {
-      message: error.message,
+      message: originalError.message,
       extensions: {
-        code: error.code,
-        statusCode: error.statusCode,
+        code: originalError.code,
+        statusCode: originalError.statusCode,
       },
     };
   }

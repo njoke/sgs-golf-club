@@ -8,14 +8,16 @@ Feature: Shared bootstrap data
     * def memberUser = memberAuth.user
 
     Given url baseUrl
-    And header Content-Type = 'application/json'
     And header Authorization = 'Bearer ' + adminToken
+    And header Content-Type = 'application/json'
 
     And request { "query": "{ myClubs { id name } }" }
     When method post
     Then status 200
     * def clubId = response.data.myClubs[0].id
 
+    And header Authorization = 'Bearer ' + adminToken
+    And header Content-Type = 'application/json'
     And request
       """
       {
@@ -33,6 +35,8 @@ Feature: Shared bootstrap data
     * def jaredGolferId = jaredGolfer.id
     * def anotherGolferId = anotherGolfer.id
 
+    And header Authorization = 'Bearer ' + adminToken
+    And header Content-Type = 'application/json'
     And request
       """
       {

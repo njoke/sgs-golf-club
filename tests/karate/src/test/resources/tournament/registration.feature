@@ -105,6 +105,7 @@ Feature: Tournament registration
     When method post
     Then status 200
 
+    And header Authorization = 'Bearer ' + memberToken
     And request
       """
       {
