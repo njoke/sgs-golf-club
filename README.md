@@ -1,6 +1,6 @@
-# SGS Golf Club — Club Management Portal
+# SGS Golf Club Club Management Portal
 
-A full-stack golf club management system built for Safari Golf Seattle. Covers member management, WHS-compliant handicap calculation, score posting, tournament administration, and a dual-portal UI for admins and members.
+A full-stack golf club management system for Safari Golf Seattle. Covers member management, WHS-compliant handicap calculation, score posting, tournament administration, and a dual-portal UI for admins and members.
 
 ---
 
